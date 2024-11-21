@@ -46,21 +46,12 @@ class Vehicle:
         
         self.id=id
         self.name:str="auv"+str(id)
-        self.type="HoveringAUV"
         self.control_scheme=control_scheme
         self.start_location=location
         self.start_rotation=rotation
 
         self.number_of_sensors:int=0
         self.sonar_ID:int
-        self.agent={
-            "agent_name": self.name,
-            "agent_type": "HoveringAUV",
-            "sensors":[],
-            "control_scheme":self.control_scheme,
-            "location": self.start_location,
-            "rotation": self.start_rotation
-        }
 
         self.waypoints=waypoints
         self.number_of_waypoints:int=len(waypoints)
@@ -93,6 +84,7 @@ class Vehicle:
             starting_loc=self.start_location,
             starting_rot=self.start_rotation)
         self.counter=0
+    
     def addSensor(self,sensor:str,socket:str,rotation:list=[0,0,0])->None:
         self.agent["sensors"].append({"sensor_type":sensor,
                                     "socket": socket,
@@ -363,5 +355,13 @@ class Vehicle:
         else:
             return False
         
-#class AUV(Vehicle):
-    #def __init__(self)->None:
+class AUV(Vehicle):
+    def __init__(self):
+        self.agent={
+            "agent_name": self.name,
+            "agent_type": "HoveringAUV",
+            "sensors":[],
+            "control_scheme":self.control_scheme,
+            "location": self.start_location,
+            "rotation": self.start_rotation
+        }
