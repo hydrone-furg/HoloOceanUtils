@@ -40,13 +40,8 @@ class Vehicle:
         self.cartesian_image_file_name:str
         self.polar_image_file_name:str
         self.mission=mission
-        if os.path.exists(self.root_folder):
-            os.system('mkdir '+self.root_folder+'/'+self.files_folder)
-            os.system('mkdir '+self.root_folder+'/'+self.files_folder+'/'+self.data_folder)
-        else:
-            os.system('mkdir '+self.root_folder)
-            os.system('mkdir '+self.root_folder+'/'+self.files_folder)
-            os.system('mkdir '+self.root_folder+'/'+self.files_folder+'/'+self.data_folder)
+
+        self.create_file_folders()
         
         self.id=id
         self.name:str="auv"+str(id)
