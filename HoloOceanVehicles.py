@@ -27,50 +27,47 @@ class PIDController:
 
 class Vehicle:
     def __init__(self,id:str,control_scheme:int=0,location=[float,float,float],rotation=[int,int,int],mission=1,waypoints=[],sonar_model:str="")->None:
-        
-        self.files_folder=str(mission)+'-auv-'+id+'-data'
-        self.pkl_folder='States'
-        self.cartesian_image_folder='Cartesian-images'
-        self.polar_image_folder='Polar-images'
-        self.raw_data_folder='Raw-data'
-        self.meta_data_folder='Meta-data'
-        self.root_folder="Sonar-Dataset-mission-"+str(mission)+"-"+sonar_model
+        self.pkl_folder = 'States'
+        self.cartesian_image_folder = 'Cartesian-images'
+        self.polar_image_folder = 'Polar-images'
+        self.raw_data_folder = 'Raw-data'
+        self.meta_data_folder = 'Meta-data'
+        self.root_folder = "Sonar-Dataset-mission-"+str(mission)+"-"+sonar_model
         self.meta_data_file_name:str
         self.raw_sonar_data_file_name:str
         self.cartesian_image_file_name:str
         self.polar_image_file_name:str
-        self.mission=mission
+        self.mission = mission
 
         self.create_file_folders()
         
-        self.id=id
-        self.name:str="auv"+str(id)
-        self.control_scheme=control_scheme
-        self.start_location=location
-        self.start_rotation=rotation
+        self.id = id
+        self.control_scheme = control_scheme
+        self.start_location = location
+        self.start_rotation = rotation
 
-        self.number_of_sensors:int=0
+        self.number_of_sensors:int = 0
         self.sonar_ID:int
 
         self.waypoints=waypoints
-        self.number_of_waypoints:int=len(waypoints)
-        self.reached_waypoints:int=0
-        self.actual_waypoint=waypoints[self.reached_waypoints]
+        self.number_of_waypoints:int = len(waypoints)
+        self.reached_waypoints:int = 0
+        self.actual_waypoint = waypoints[self.reached_waypoints]
 
-        self.distance_tresh_hold=0.1
-        self.angle_tresh_hold=1.0
+        self.distance_tresh_hold = 0.1
+        self.angle_tresh_hold = 1.0
         
-        self.sonar_image=None
-        self.actual_location=location
-        self.actual_rotation=rotation
+        self.sonar_image = None
+        self.actual_location = location
+        self.actual_rotation = rotation
 
-        self.pid_controller_linear = PIDController(kp=0.5,ki=0.0,kd=0.01)
-        self.pid_controller_angular = PIDController(kp=0.01,ki=0.0,kd=0.01)
-        self.dt=1/200
+        self.pid_controller_linear = PIDController(kp=0.5, ki=0.0, kd=0.01)
+        self.pid_controller_angular = PIDController(kp=0.01, ki=0.0, kd=0.01)
+        self.dt = 1/200
 
-        self.command=None
+        self.command = None
         
-        self.sensors=Sensors(self.name,"HoveringAUV")
+        self.sensors = Sensors(self.name, "HoveringAUV")
         self.sensors.addImagingSonar()
         self.sensors.addPositionSensor()
         
