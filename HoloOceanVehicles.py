@@ -25,7 +25,7 @@ class PIDController:
         self.prev_error = error
         return output
 
-class Vehicle:
+class Vehicle():
     def __init__(self,id:str,control_scheme:int=0,location=[float,float,float],rotation=[int,int,int],mission=1,waypoints=[],sonar_model:str="")->None:
         self.pkl_folder = 'States'
         self.cartesian_image_folder = 'Cartesian-images'
@@ -37,10 +37,7 @@ class Vehicle:
         self.raw_sonar_data_file_name:str
         self.cartesian_image_file_name:str
         self.polar_image_file_name:str
-        self.mission = mission
-
-        self.create_file_folders()
-        
+        self.mission = mission        
         self.id = id
         self.control_scheme = control_scheme
         self.start_location = location
@@ -64,20 +61,9 @@ class Vehicle:
         self.pid_controller_linear = PIDController(kp=0.5, ki=0.0, kd=0.01)
         self.pid_controller_angular = PIDController(kp=0.01, ki=0.0, kd=0.01)
         self.dt = 1/200
-
         self.command = None
-        
-        self.sensors = Sensors(self.name, "HoveringAUV")
-        self.sensors.addImagingSonar()
-        self.sensors.addPositionSensor()
-        
-        self.agent_definition=holoocean.agents.AgentDefinition(
-            agent_name=self.name,
-            agent_type="HoveringAUV",
-            sensors=[self.sensors.image_sonar,self.sensors.location_sensor,self.sensors.rotation_sensor],
-            starting_loc=self.start_location,
-            starting_rot=self.start_rotation)
-        self.counter=0
+        self.counter = 0
+
     def addSensor(self,sensor:str,socket:str,rotation:list=[0,0,0])->None:
         self.agent["sensors"].append({"sensor_type":sensor,
                                     "socket": socket,
@@ -99,14 +85,7 @@ class Vehicle:
         self.number_of_sensors+=1
 
     def create_file_folders(self):
-        if not os.path.exists(self.root_folder):
-            os.mkdir(self.root_folder)
-        os.mkdir(self.root_folder+'/'+self.files_folder)
-        os.mkdir(self.root_folder+'/'+self.files_folder+'/'+self.pkl_folder)
-        os.mkdir(self.root_folder+'/'+self.files_folder+'/'+self.cartesian_image_folder)
-        os.mkdir(self.root_folder+'/'+self.files_folder+'/'+self.polar_image_folder)
-        os.mkdir(self.root_folder+'/'+self.files_folder+'/'+self.raw_data_folder)
-        os.mkdir(self.root_folder+'/'+self.files_folder+'/'+self.meta_data_folder)
+        pass
 
     def imageViwer(self)->None:    
         config = self.sensors.image_sonar_config
@@ -332,7 +311,7 @@ class Vehicle:
         self.command = np.concatenate((linear_velocity, angular_velocity), axis=None)
         print(self.command)
 
-    def fineshedMission(self)->bool:
+    def finishedMission(self)->bool:
         if self.reached_waypoints-1>self.number_of_waypoints:
             self.command=[0,0,0,0,0,0]
             plt.close('all')
@@ -341,7 +320,10 @@ class Vehicle:
             return False
         
 class AUV(Vehicle):
-    def __init__(self):
+    def __init__(self, id, control_scheme = 0, location=[float, float, float], rotation=[int, int, int], mission=1, waypoints=[], sonar_model=""):
+        super().__init__(id, control_scheme, location, rotation, mission, waypoints, sonar_model)
+        self.files_folder = str(self.mission) + '-auv-' + self.id + '-data'
+        self.name:str = "auv" + str(id)
         self.type="HoveringAUV"
         self.agent={
             "agent_name": self.name,
@@ -351,3 +333,26 @@ class AUV(Vehicle):
             "location": self.start_location,
             "rotation": self.start_rotation
         }
+
+        self.create_file_folders()
+
+        self.sensors = Sensors(self.name, "HoveringAUV")
+        self.sensors.addImagingSonar()
+        self.sensors.addPositionSensor()
+
+        self.agent_definition=holoocean.agents.AgentDefinition(
+            agent_name=self.name,
+            agent_type=self.type,
+            sensors=[self.sensors.image_sonar,self.sensors.location_sensor,self.sensors.rotation_sensor],
+            starting_loc=self.start_location,
+            starting_rot=self.start_rotation)
+
+    def create_file_folders(self):
+        if not os.path.exists(self.root_folder):
+            os.mkdir(self.root_folder)
+        os.mkdir(os.path.join(self.root_folder, self.files_folder))
+        os.mkdir(self.root_folder+'/'+self.files_folder+'/'+self.pkl_folder)
+        os.mkdir(self.root_folder+'/'+self.files_folder+'/'+self.cartesian_image_folder)
+        os.mkdir(self.root_folder+'/'+self.files_folder+'/'+self.polar_image_folder)
+        os.mkdir(self.root_folder+'/'+self.files_folder+'/'+self.raw_data_folder)
+        os.mkdir(self.root_folder+'/'+self.files_folder+'/'+self.meta_data_folder)
