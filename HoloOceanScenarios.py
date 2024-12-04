@@ -27,16 +27,17 @@ class Scenario:
         pass
 
 class Mission():
-    def __init__(self,mission_data:list,mission_id:int):
-        self.mission_id=mission_id
-        self.mission_data=mission_data
+    def __init__(self,mission_data:list,mission_id:int,sonar:str):
+        self.mission_id = mission_id
+        self.mission_data = mission_data
+        self.sonar_model = sonar
         
-        self.mission_waypoints=[]
-        self.number_of_waypoints:int=0
-        self.reached_waypoints:int=0
-        self.actual_waypoint=[]
-        self.distance_tresh_hold=0.1
-        self.angle_tresh_hold=2.0
+        self.mission_waypoints = []
+        self.number_of_waypoints:int = 0
+        self.reached_waypoints:int = 0
+        self.actual_waypoint = []
+        self.distance_tresh_hold = 0.1
+        self.angle_tresh_hold = 2.0
 
     def createWaypoints(self)->None:
 
@@ -124,6 +125,47 @@ class Mission():
 
         scenario = Scenario("Imaging_Sonar_Dataset","64-tank-Map-"+str(mission_id),"Dataset-world",200)
 
+        auv = AUV(id=str(data[0]),location=self.actual_waypoint[0:3],rotation=self.actual_waypoint[3:],mission=mission_id,waypoints=self.mission_waypoints,sonar_model=self.sonar_model)
+        #auv.reached_waypoints=self.reached_waypoints
+        sonar_configuration = json.load(open('sonar-configuration.json'))
+        P900 = sonar_configuration[self.sonar_model]
+        auv.addSonarImaging(configuration=P900)
+       
+        auv.addSensor("LocationSensor","Origin")
+        auv.addSensor("RotationSensor","Origin")
+        auv.addSensor("PoseSensor","Origin",[0,0,0])
+        auv.imageViwer()
+        scenario.addAgent(auv.agent)
+
+        with open("Config.json",'w') as fp:
+            json.dump(scenario.cfg, fp)
+            os.system('mv '+'Config.json'+' '+auv.root_folder+'/'+auv.files_folder)
+
+        env=holoocean.make(scenario_cfg=scenario.cfg,verbose=False)
+        env.reset
+        
+        for l in self.mission_waypoints:
+            env.draw_point([l[0], l[1], l[2]],[0,255,0], lifetime=0)
+        
+        #start Simulation
+
+        env.move_viewport([float(data[2]),-1*float(data[3]),6],[0,0,180])
+        state=env.tick()
+        auv.updateState(state)
+
+        while not auv.finishedMission():
+            state=env.tick()
+            auv.updateState(state)
+            env.act(auv.name,auv.command)
+
+        print("Finished Mission "+data[0])
+        os.system("killall -e Holodeck")
+        data=self.mission_data
+        mission_id=self.mission_id
+        self.createWaypoints()
+
+        scenario = Scenario("Imaging_Sonar_Dataset","64-tank-Map-"+str(mission_id),"Dataset-world",200)
+
         auv = AUV(id=str(data[0]),location=self.actual_waypoint[0:3],rotation=self.actual_waypoint[3:],mission=mission_id,waypoints=self.mission_waypoints)
         #auv.reached_waypoints=self.reached_waypoints
         auv.addSonarImaging(hz=10,RangeBins=256,AzimuthBins=96,RangeMin=0,RangeMax=4,Elevation=28,Azimuth=28.8,AzimuthStreaks=-1,ScaleNoise=True,AddSigma=0.15,
@@ -168,7 +210,7 @@ class Mission():
         state=env.tick()
         auv.updateState(state)
 
-        while not auv.fineshedMission():
+        while not auv.finishedMission():
             warn('Passing!')
             pass
             #state=env.tick()
