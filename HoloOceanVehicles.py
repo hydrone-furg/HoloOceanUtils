@@ -33,6 +33,7 @@ class Vehicle():
         self.raw_data_folder = 'Raw-data'
         self.meta_data_folder = 'Meta-data'
         self.root_folder = "Sonar-Dataset-mission-"+str(mission)+"-"+sonar_model
+        self.gt_folder="GT-folder"
         self.meta_data_file_name:str
         self.raw_sonar_data_file_name:str
         self.cartesian_image_file_name:str
@@ -63,6 +64,7 @@ class Vehicle():
         self.dt = 1/200
         self.command = None
         self.counter = 0
+        
 
     def addSensor(self,sensor:str,socket:str,rotation:list=[0,0,0])->None:
         self.agent["sensors"].append({"sensor_type":sensor,
@@ -169,21 +171,22 @@ class Vehicle():
 
     def updateState(self,state)->None: 
 
-        if 'ImagingSonar' in state[self.name]:    
-            self.sonar_image=(state[self.name]['ImagingSonar'])
-            if self.reachedWaypoint():
-                self.updateSonarImage()
-                self.saveSonarRawData()
-                self.saveCartesianImage()
-                self.saveMetaDataFile()
-                self.saveState(state)
-                self.counter+=1
+        #if 'ImagingSonar' in state[self.name]:    
+        #self.sonar_image=(state[self.name]['ImagingSonar'])
+        #if self.reachedWaypoint():
+        self.updateSonarImage()
+        self.saveSonarRawData()
+        self.saveCartesianImage()
+        self.saveMetaDataFile()
+        self.saveState(state)
+        self.saveSonarGT(state)
+        self.counter+=1
         if 'LocationSensor' in state[self.name]:
             self.actual_location=(state[self.name]['LocationSensor'])
         if 'RotationSensor' in state[self.name]:
             self.actual_rotation=(state[self.name]['RotationSensor'])
         
-        self.calculateVelocities()
+        #self.calculateVelocities()
 
     def createWaypoints(self, end_z)->None:
         if self.mission==1:
@@ -309,7 +312,7 @@ class Vehicle():
         angular_velocity = erro_orientacao / np.linalg.norm(erro_orientacao) * desired_angular_velocity
         angular_velocity=[0,0,angular_velocity[2]]
         self.command = np.concatenate((linear_velocity, angular_velocity), axis=None)
-        print(self.command)
+        #print(self.command)
 
     def finishedMission(self)->bool:
         if self.reached_waypoints-1>self.number_of_waypoints:
@@ -318,6 +321,34 @@ class Vehicle():
             return True
         else:
             return False
+        
+    def addSonarGT(self,rotation)->None:
+        self.gt_matrix=np.zeros(shape=(int(self.sensors.image_sonar_config["AzimuthBins"] ), int(self.sensors.image_sonar_config["Elevation"])))
+        for t in range(int(self.sensors.image_sonar_config["AzimuthBins"])):
+            for p in range(int(self.sensors.image_sonar_config["Elevation"])):
+                rotation=[0,rotation[1],(t*(self.sensors.image_sonar_config["Azimuth"]/self.sensors.image_sonar_config["AzimuthBins"]))-self.sensors.image_sonar_config["Azimuth"]/2]
+                self.agent["sensors"].append({"sensor_type":"RangeFinderSensor",
+                                                "sensor_name":(f"{t} {p}"),
+                                                "socket": "CameraSocket",
+                                                "rotation":rotation,
+                                                "configuration":{
+                                                    "LaserMaxDistance": self.sensors.image_sonar_config["RangeMax"],
+                                                    "LaserCount": 1,
+                                                    "LaserAngle":p-int(self.sensors.image_sonar_config["Elevation"])/2,
+                                                    "LaserDebug": True,
+                                                }
+                                            })
+    
+    def saveSonarGT(self,state)->None:
+        if '0 0' in state[self.name]:
+            for t in range(int(self.sensors.image_sonar_config["AzimuthBins"])):
+                for p in range(int(self.sensors.image_sonar_config["Elevation"])):
+                    self.gt_matrix[t][p]=state[self.name][(f"{t} {p}")]
+
+        np.save(str(self.counter)+'.npy',self.gt_matrix)
+        os.system('mv '+str(self.counter)+'.npy'+' '+self.root_folder+'/'+self.files_folder+'/'+self.gt_folder)       
+        #print(self.gt_matrix)
+        self.counter += 1
         
 class AUV(Vehicle):
     def __init__(self, id, control_scheme = 0, location=[float, float, float], rotation=[int, int, int], mission=1, waypoints=[], sonar_model=""):
@@ -350,9 +381,51 @@ class AUV(Vehicle):
     def create_file_folders(self):
         if not os.path.exists(self.root_folder):
             os.mkdir(self.root_folder)
+        
         os.mkdir(os.path.join(self.root_folder, self.files_folder))
         os.mkdir(self.root_folder+'/'+self.files_folder+'/'+self.pkl_folder)
         os.mkdir(self.root_folder+'/'+self.files_folder+'/'+self.cartesian_image_folder)
         os.mkdir(self.root_folder+'/'+self.files_folder+'/'+self.polar_image_folder)
         os.mkdir(self.root_folder+'/'+self.files_folder+'/'+self.raw_data_folder)
         os.mkdir(self.root_folder+'/'+self.files_folder+'/'+self.meta_data_folder)
+        os.mkdir(self.root_folder+'/'+self.files_folder+'/'+self.gt_folder)
+
+class SphereAgent(Vehicle):
+    def __init__(self, id, control_scheme = 0, location=[float, float, float], rotation=[int, int, int], mission=1, waypoints=[], sonar_model=""):
+        super().__init__(id, control_scheme, location, rotation, mission, waypoints, sonar_model)
+        self.files_folder = str(self.mission) + '-sphere-' + self.id + '-data'
+        self.name:str = "sphere" + str(id)
+        self.type="SphereAgent"
+        self.agent={
+            "agent_name": self.name,
+            "agent_type": self.type,
+            "sensors":[],
+            "control_scheme":self.control_scheme,
+            "location": self.start_location,
+            "rotation": self.start_rotation
+        }
+
+        self.create_file_folders()
+
+        self.sensors = Sensors(self.name, "SphereAgent")
+        self.sensors.addImagingSonar()
+        self.sensors.addPositionSensor()
+
+        self.agent_definition=holoocean.agents.AgentDefinition(
+            agent_name=self.name,
+            agent_type=self.type,
+            sensors=[self.sensors.image_sonar,self.sensors.location_sensor,self.sensors.rotation_sensor],
+            starting_loc=self.start_location,
+            starting_rot=self.start_rotation)
+
+    def create_file_folders(self):
+        if not os.path.exists(self.root_folder):
+            os.mkdir(self.root_folder)
+        
+        os.mkdir(os.path.join(self.root_folder, self.files_folder))
+        os.mkdir(self.root_folder+'/'+self.files_folder+'/'+self.pkl_folder)
+        os.mkdir(self.root_folder+'/'+self.files_folder+'/'+self.cartesian_image_folder)
+        os.mkdir(self.root_folder+'/'+self.files_folder+'/'+self.polar_image_folder)
+        os.mkdir(self.root_folder+'/'+self.files_folder+'/'+self.raw_data_folder)
+        os.mkdir(self.root_folder+'/'+self.files_folder+'/'+self.meta_data_folder)
+        os.mkdir(self.root_folder+'/'+self.files_folder+'/'+self.gt_folder)
