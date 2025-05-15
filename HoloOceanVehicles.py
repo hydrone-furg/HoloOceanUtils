@@ -171,16 +171,16 @@ class Vehicle():
 
     def updateState(self,state)->None: 
 
-        #if 'ImagingSonar' in state[self.name]:    
-        #self.sonar_image=(state[self.name]['ImagingSonar'])
-        #if self.reachedWaypoint():
-        self.updateSonarImage()
-        self.saveSonarRawData()
-        self.saveCartesianImage()
-        self.saveMetaDataFile()
-        self.saveState(state)
-        self.saveSonarGT(state)
-        self.counter+=1
+        if 'ImagingSonar' in state[self.name]:  
+            self.sonar_image=(state[self.name]['ImagingSonar'])
+            if self.reachedWaypoint():
+                self.updateSonarImage()
+                self.saveSonarRawData()
+                self.saveCartesianImage()
+                self.saveMetaDataFile()
+                self.saveState(state)
+                self.saveSonarGT(state)
+                self.counter+=1
         if 'LocationSensor' in state[self.name]:
             self.actual_location=(state[self.name]['LocationSensor'])
         if 'RotationSensor' in state[self.name]:
@@ -312,7 +312,7 @@ class Vehicle():
         angular_velocity = erro_orientacao / np.linalg.norm(erro_orientacao) * desired_angular_velocity
         angular_velocity=[0,0,angular_velocity[2]]
         self.command = np.concatenate((linear_velocity, angular_velocity), axis=None)
-        #print(self.command)
+        #print(self.command) 
 
     def finishedMission(self)->bool:
         if self.reached_waypoints-1>self.number_of_waypoints:
